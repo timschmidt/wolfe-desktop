@@ -1,6 +1,6 @@
 [package]
 name = "wolfe-desktop"
-version = "0.1.0"
+version = "0.1.1"
 description = "A Tauri desktop client for Wolfe semantic file search"
 authors = ["Wolfe contributors"]
 edition = "2021"
