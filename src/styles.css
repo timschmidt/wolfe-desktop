@@ -303,6 +303,32 @@ textarea {
   border-color: #89764a;
 }
 
+.batch details {
+  margin-top: 4px;
+}
+
+.batch summary {
+  color: #31403f;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.batch pre {
+  max-height: 180px;
+  overflow: auto;
+  margin: 6px 0 0;
+  border: 1px solid #d8dddd;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #1e2528;
+  font-size: 11px;
+  line-height: 1.4;
+  padding: 8px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
 .search-pane {
   display: grid;
   grid-template-rows: auto auto auto minmax(0, 1fr);

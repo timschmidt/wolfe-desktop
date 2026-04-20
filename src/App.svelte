@@ -267,7 +267,7 @@
   <section class="topbar">
     <div>
       <h1>Wolfe</h1>
-      <p>Local multimodal semantic search through a portable podman runtime.</p>
+      <p>Local multimodal semantic search</p>
     </div>
     <div class:bad={!status?.available} class="podman-pill">
       <span>{status?.available ? "Podman ready" : "Podman missing"}</span>
@@ -384,6 +384,12 @@
                 <small>{item.ingestCurrent}/{item.ingestTotal} files</small>
               {/if}
               <small>{item.status}: {item.message.slice(0, 180)}</small>
+              {#if item.status === "error" || item.message.length > 180}
+                <details>
+                  <summary>Output</summary>
+                  <pre>{item.message}</pre>
+                </details>
+              {/if}
             </article>
           {/each}
         </div>

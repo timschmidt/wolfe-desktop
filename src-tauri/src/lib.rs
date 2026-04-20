@@ -576,14 +576,33 @@ fn run_podman_streaming_index(
     let combined = format!("{stdout}{stderr_text}");
 
     if status.success() {
-        Ok(if stdout.trim().is_empty() {
-            stderr_text
+        if summary_has_only_failed_records(&stdout) {
+            Err(combined)
         } else {
-            stdout
-        })
+            Ok(if combined.trim().is_empty() {
+                "Index batch finished.".to_string()
+            } else {
+                combined
+            })
+        }
     } else {
         Err(combined)
     }
+}
+
+fn summary_has_only_failed_records(stdout: &str) -> bool {
+    let Ok(summary) = serde_json::from_str::<Value>(stdout.trim()) else {
+        return false;
+    };
+    let stored = summary
+        .get("stored")
+        .and_then(Value::as_u64)
+        .unwrap_or_default();
+    let errors = summary
+        .get("errors")
+        .and_then(Value::as_u64)
+        .unwrap_or_default();
+    stored == 0 && errors > 0
 }
 
 fn parse_ingest_line(line: &str) -> Option<(usize, usize, String)> {
