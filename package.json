@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "check": "svelte-check --tsconfig ./tsconfig.json",
     "build": "tsc && vite build",
     "preview": "vite preview",
     "tauri": "tauri"
