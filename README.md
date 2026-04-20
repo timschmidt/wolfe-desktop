@@ -4,6 +4,8 @@ Wolfe Desktop is a Tauri desktop client for local multimodal semantic search. It
 
 The app delegates indexing and search work to a Podman image, so the desktop shell stays small while the Wolfe runtime remains portable.
 
+![Wolfe Desktop screenshot](doc/screenshot.png)
+
 ## Features
 
 - Index local folders into a Lance database.
