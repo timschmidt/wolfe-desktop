@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::{
     collections::{HashMap, HashSet},
+    env,
     ffi::OsStr,
     fs,
     io::{BufRead, BufReader},
@@ -21,6 +22,8 @@ use uuid::Uuid;
 const DEFAULT_IMAGE: &str = "localhost/wolfe-podman:latest";
 const FALLBACK_IMAGE: &str = "localhost/wolfe-podman:latest";
 const PODMAN_REPO: &str = "https://github.com/timschmidt/wolfe-podman.git";
+const DEFAULT_CDI_DEVICE: &str = "nvidia.com/gpu=all";
+const DEFAULT_CACHE_VOLUME: &str = "wolfe-cache";
 
 #[derive(Default)]
 struct AppState {
@@ -245,12 +248,17 @@ fn search(request: SearchRequest) -> Result<Vec<SearchResult>, String> {
     let image = request.image.unwrap_or_else(|| DEFAULT_IMAGE.to_string());
     let mounts = Mounts::for_search(&db)?;
 
-    let mut args = base_podman_args(&image, &mounts);
+    let device = normalized_device(request.device);
+    let mut args = base_podman_args(
+        &image,
+        &mounts,
+        should_enable_nvidia_cdi(device.as_deref())?,
+    );
     args.extend(["--search".to_string(), request.query]);
     args.extend(["--db".to_string(), mounts.container_db_path()]);
     args.extend(["--limit".to_string(), limit]);
     args.push("--json".to_string());
-    if let Some(device) = normalized_device(request.device) {
+    if let Some(device) = device {
         args.extend(["--device".to_string(), device]);
     }
 
@@ -439,7 +447,12 @@ fn run_index_batch(
         .unwrap_or_else(|| DEFAULT_IMAGE.to_string());
     let mounts = Mounts::for_index(batch, &db)?;
 
-    let mut args = base_podman_args(&image, &mounts);
+    let device = normalized_device(request.device.clone());
+    let mut args = base_podman_args(
+        &image,
+        &mounts,
+        should_enable_nvidia_cdi(device.as_deref())?,
+    );
     args.extend(["--path".to_string(), batch.display().to_string()]);
     args.extend(["--db".to_string(), mounts.container_db_path()]);
     if request.low_memory {
@@ -448,7 +461,7 @@ fn run_index_batch(
     if request.translate {
         args.push("--translate".to_string());
     }
-    if let Some(device) = normalized_device(request.device.clone()) {
+    if let Some(device) = device {
         args.extend(["--device".to_string(), device]);
     }
     for ignore in &request.ignores {
@@ -460,18 +473,26 @@ fn run_index_batch(
     run_podman_streaming_index(args, progress)
 }
 
-fn base_podman_args(image: &str, mounts: &Mounts) -> Vec<String> {
+fn base_podman_args(image: &str, mounts: &Mounts, enable_nvidia_cdi: bool) -> Vec<String> {
     let mut args = vec![
         "run".to_string(),
         "--rm".to_string(),
         "--security-opt".to_string(),
         "label=disable".to_string(),
+        "--ipc=host".to_string(),
         "--user".to_string(),
         "0:0".to_string(),
     ];
+    if enable_nvidia_cdi {
+        args.extend(["--device".to_string(), cdi_device_name()]);
+    }
     for mount in &mounts.args {
         args.extend(["-v".to_string(), mount.clone()]);
     }
+    args.extend([
+        "--mount".to_string(),
+        format!("type=volume,src={},dst=/cache", cache_volume_name()),
+    ]);
     args.push(image.to_string());
     args
 }
@@ -741,10 +762,42 @@ async fn count_unique_files(dataset: &Dataset) -> Result<usize, String> {
 
 fn normalized_device(device: Option<String>) -> Option<String> {
     let device = device?;
-    match device.trim() {
-        "auto" | "cpu" | "cuda" | "mps" => Some(device),
+    let device = device.trim();
+    match device {
+        "auto" | "cpu" | "cuda" | "mps" => Some(device.to_string()),
         _ => None,
     }
+}
+
+fn should_enable_nvidia_cdi(device: Option<&str>) -> Result<bool, String> {
+    match device {
+        Some("cpu" | "mps") => Ok(false),
+        Some("cuda") if !has_nvidia_cdi_spec() => Err(format!(
+            "CUDA was selected, but no NVIDIA CDI specification was found. Generate one with `sudo nvidia-ctk cdi generate --output=/etc/cdi/nvidia.yaml`, then verify `podman run --rm --device {} ubuntu:24.04 nvidia-smi`.",
+            cdi_device_name()
+        )),
+        Some("cuda") => Ok(true),
+        Some("auto") | None => Ok(has_nvidia_cdi_spec()),
+        Some(_) => Ok(false),
+    }
+}
+
+fn has_nvidia_cdi_spec() -> bool {
+    Path::new("/etc/cdi/nvidia.yaml").exists() || Path::new("/var/run/cdi/nvidia.yaml").exists()
+}
+
+fn cdi_device_name() -> String {
+    env::var("WOLFE_CDI_DEVICE")
+        .ok()
+        .filter(|value| !value.trim().is_empty())
+        .unwrap_or_else(|| DEFAULT_CDI_DEVICE.to_string())
+}
+
+fn cache_volume_name() -> String {
+    env::var("WOLFE_CACHE_VOLUME")
+        .ok()
+        .filter(|value| !value.trim().is_empty())
+        .unwrap_or_else(|| DEFAULT_CACHE_VOLUME.to_string())
 }
 
 fn emit_progress(

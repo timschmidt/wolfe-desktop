@@ -47,6 +47,17 @@ Podman must be available on `PATH`:
 podman --version
 ```
 
+For NVIDIA GPU acceleration, install the NVIDIA Container Toolkit and generate a Podman CDI specification:
+
+```bash
+sudo nvidia-ctk cdi generate --output=/etc/cdi/nvidia.yaml
+podman run --rm --device nvidia.com/gpu=all ubuntu:24.04 nvidia-smi
+```
+
+Wolfe Desktop automatically passes the CDI device to Podman when **Device** is `Auto` or `CUDA` and `/etc/cdi/nvidia.yaml` or `/var/run/cdi/nvidia.yaml` exists. Override the CDI device name with `WOLFE_CDI_DEVICE` if your host uses a different name.
+
+Model caches are stored in the Podman volume `wolfe-cache`, mounted at `/cache` inside the container. Override the volume name with `WOLFE_CACHE_VOLUME` if you want separate model caches for different datasets or test runs.
+
 ## Setup
 
 Install JavaScript dependencies:
@@ -104,7 +115,7 @@ You can also enter another image name in the app if you maintain a custom Wolfe 
    - **Batch top-level subfolders** splits the job into one batch per child directory.
    - **Low memory** passes `--low-memory` to the Wolfe runtime.
    - **Translate speech** passes `--translate`.
-   - **Device** passes `--device auto|cpu|cuda|mps`.
+   - **Device** passes `--device auto|cpu|cuda|mps` to Wolfe. `Auto` and `CUDA` also enable NVIDIA CDI passthrough for Podman when a CDI spec is present.
 5. Click **Start indexing**.
 6. Enter a query and click **Search**.
 7. Click a result path or document preview to open it with the system default app.
