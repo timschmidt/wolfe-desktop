@@ -284,7 +284,7 @@ fn search(request: SearchRequest) -> Result<Vec<SearchResult>, String> {
                 path,
                 source_path,
                 record_type: string_field(&raw, &["kind", "type", "record_type", "modality"]),
-                text: string_field(&raw, &["text", "chunk", "content", "summary"]),
+                text: string_field(&raw, &["snippet", "text", "chunk", "content", "summary"]),
                 raw,
                 preview,
             }

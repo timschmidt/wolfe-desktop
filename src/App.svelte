@@ -24,7 +24,7 @@
   };
 
   type Result = {
-    score?: number;
+    score?: number | null;
     path?: string;
     sourcePath?: string;
     recordType?: string;
@@ -206,14 +206,23 @@
     notice = "Cancellation requested. The current podman batch may finish before the job stops.";
   }
 
+  function normalizeResults(value: unknown): Result[] {
+    const parsed = typeof value === "string" ? JSON.parse(value) : value;
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter((item): item is Result => item !== null && typeof item === "object");
+  }
+
   async function runSearch() {
     if (!query.trim()) return;
     searching = true;
     error = "";
+    notice = "";
     try {
-      results = await invoke<Result[]>("search", {
+      const value = await invoke<unknown>("search", {
         request: { query, dbPath, image, limit, device },
       });
+      results = normalizeResults(value);
+      notice = results.length ? `${results.length} result${results.length === 1 ? "" : "s"} found.` : "No results found.";
       await refreshDatabaseStatus();
     } catch (err) {
       error = String(err);
@@ -229,8 +238,28 @@
 
   function mediaSrc(preview: Preview) {
     if (preview.dataUrl) return preview.dataUrl;
-    if (preview.fileUrl) return convertFileSrc(preview.fileUrl);
+    if (preview.fileUrl) {
+      try {
+        return convertFileSrc(preview.fileUrl);
+      } catch {
+        return "";
+      }
+    }
     return "";
+  }
+
+  function resultTitle(result: Partial<Result>) {
+    return result.sourcePath ?? result.path ?? "Unknown source";
+  }
+
+  function resultText(result: Partial<Result>) {
+    if (result.text) return result.text;
+    if (result.raw && typeof result.raw.snippet === "string") return result.raw.snippet;
+    return JSON.stringify(result.raw ?? result).slice(0, 420);
+  }
+
+  function resultScore(result: Partial<Result>) {
+    return typeof result.score === "number" ? result.score.toFixed(4) : "";
   }
 
   function upsertProgress(items: Progress[], next: Progress) {
@@ -411,35 +440,39 @@
         <pre class="error">{error}</pre>
       {/if}
 
-      <div class="results">
-        {#each results as result}
-          <article class="result">
-            <div class="preview">
-              {#if result.preview?.kind === "image"}
-                <img src={mediaSrc(result.preview)} alt={result.preview.label} />
-              {:else if result.preview?.kind === "audio"}
-                <audio src={mediaSrc(result.preview)} controls></audio>
-              {:else if result.preview?.kind === "video"}
-                <video src={mediaSrc(result.preview)} controls preload="metadata">
-                  <track kind="captions" />
-                </video>
-              {:else if result.preview?.kind === "document"}
-                <button type="button" class="doc-preview" on:click={() => reveal(result.sourcePath)}>PDF</button>
-              {:else}
-                <span>{result.recordType ?? "file"}</span>
-              {/if}
+      {#if !searching && query.trim() && results.length === 0 && !error}
+        <div class="empty-results">No results found.</div>
+      {/if}
+      {#each results as result}
+        <article class="result-card">
+          <div class="result-preview">
+            {#if result.preview?.kind === "image"}
+              <img src={mediaSrc(result.preview)} alt={result.preview.label} />
+            {:else if result.preview?.kind === "audio"}
+              <audio src={mediaSrc(result.preview)} controls></audio>
+            {:else if result.preview?.kind === "video"}
+              <video src={mediaSrc(result.preview)} controls preload="metadata">
+                <track kind="captions" />
+              </video>
+            {:else if result.preview?.kind === "document"}
+              <button type="button" class="doc-preview" on:click={() => reveal(result.sourcePath)}>PDF</button>
+            {:else}
+              <span>{result.recordType ?? "file"}</span>
+            {/if}
+          </div>
+          <div class="result-content">
+            <div class="result-row-head">
+              <button type="button" on:click={() => reveal(result.sourcePath)}>{resultTitle(result)}</button>
+              {#if resultScore(result)}<small>{resultScore(result)}</small>{/if}
             </div>
-            <div class="result-body">
-              <div class="result-head">
-                <button type="button" on:click={() => reveal(result.sourcePath)}>{result.sourcePath ?? result.path ?? "Unknown source"}</button>
-                {#if result.score !== undefined}<small>{result.score.toFixed(4)}</small>{/if}
-              </div>
-              <p>{result.text ?? JSON.stringify(result.raw).slice(0, 420)}</p>
+            <p>{resultText(result)}</p>
+            <div class="result-meta">
               <small>{result.recordType ?? result.preview?.kind ?? "record"}</small>
+              {#if result.raw?.unit}<small>{String(result.raw.unit)}{#if result.raw?.offset !== undefined}: {String(result.raw.offset)}{/if}</small>{/if}
             </div>
-          </article>
-        {/each}
-      </div>
+          </div>
+        </article>
+      {/each}
     </section>
   </section>
 </main>

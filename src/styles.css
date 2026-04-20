@@ -58,6 +58,7 @@ button:disabled {
 .shell {
   display: flex;
   flex-direction: column;
+  height: 100vh;
   min-height: 100vh;
 }
 
@@ -111,12 +112,16 @@ small {
   gap: 18px;
   padding: 18px;
   flex: 1;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .controls {
   display: grid;
   gap: 14px;
   align-content: start;
+  overflow: auto;
+  padding-bottom: 10px;
 }
 
 .panel,
@@ -330,10 +335,13 @@ textarea {
 }
 
 .search-pane {
-  display: grid;
-  grid-template-rows: auto auto auto minmax(0, 1fr);
+  display: flex;
+  flex-direction: column;
   gap: 12px;
+  min-height: 0;
   min-width: 0;
+  overflow: auto;
+  padding-bottom: 10px;
 }
 
 .search-card {
@@ -367,37 +375,80 @@ textarea {
   white-space: pre-wrap;
 }
 
-.results {
-  display: grid;
-  gap: 12px;
-  overflow: auto;
-  padding-bottom: 10px;
+.empty-results {
+  border: 1px solid #d8dddd;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #62706f;
+  padding: 18px;
 }
 
-.result {
+.result-card {
   display: grid;
-  grid-template-columns: 180px minmax(0, 1fr);
-  min-height: 150px;
+  grid-template-columns: 170px minmax(0, 1fr);
+  min-height: 142px;
+  border: 1px solid #d8dddd;
+  border-radius: 8px;
+  background: #ffffff;
   overflow: hidden;
 }
 
-.preview {
+.result-row-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: start;
+}
+
+.result-row-head button {
+  overflow: hidden;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  min-height: 0;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 750;
+}
+
+.result-content {
+  display: grid;
+  gap: 10px;
+  align-content: start;
+  padding: 14px;
+  min-width: 0;
+}
+
+.result-content p {
+  margin: 0;
+  color: #31403f;
+  line-height: 1.45;
+}
+
+.result-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+}
+
+.result-preview {
   display: grid;
   place-items: center;
   background: #dfe7e5;
   color: #52605f;
-  min-height: 150px;
+  min-height: 142px;
 }
 
-.preview img,
-.preview video {
+.result-preview img,
+.result-preview video {
   width: 100%;
   height: 100%;
   max-height: 220px;
   object-fit: cover;
 }
 
-.preview audio {
+.result-preview audio {
   width: 92%;
 }
 
